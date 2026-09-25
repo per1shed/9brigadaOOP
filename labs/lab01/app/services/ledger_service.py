@@ -17,7 +17,11 @@ class LedgerService:
         self._rules = tuple(rules)
 
     def record(self, entry):
-        raise NotImplementedError("ЛР1: завершите LedgerService.record")
+        for rule in self._rules:
+            result = checked(rule.check(entry))
+        if not result.allowed:
+            raise DomainError(result.code)
+        return self._repository.add(entry)
 
     def entries_for_transaction(self, transaction_id):
         return tuple(entry for entry in self._repository.all() if entry.transaction_id == transaction_id)

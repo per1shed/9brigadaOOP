@@ -22,9 +22,11 @@ class LedgerEntry:
             identifier(self.reverses_entry_id)
 
     def signed_amount(self) -> Decimal:
+        """Возвращает знаковую сумму записи: -amount для DEBIT, +amount для CREDIT."""
         if self.entry_type == "DEBIT":
             return -self.amount.amount
         return self.amount.amount
 
     def describe(self) -> str:
+        # Бонус ЛР1: "E1:DEBIT:10.00:EUR"
         return f"{self.entry_id}:{self.entry_type}:{self.amount.amount:.2f}:{self.amount.currency}"
