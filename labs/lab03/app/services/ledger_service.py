@@ -1,7 +1,8 @@
 from decimal import Decimal, localcontext
 from app.domain.ledger import LedgerEntry
-from app.support.types import checked, money, currency, ensure_new_entry
+from app.domain.posting_rules import AllowedEntryTypeRule, MaximumEntryAmountRule
 from app.support.errors import DomainError
+from app.support.types import Repository, checked, money, currency, ensure_new_entry
 
 
 class LedgerService:
@@ -10,7 +11,12 @@ class LedgerService:
         self._rules = tuple(rules)
 
     def record(self, entry):
-        raise NotImplementedError("ЛР3: реализуйте LedgerService.record по TASK.md")
+        ensure_new_entry(self._repository, entry.entry_id)
+        for rule in self._rules:
+            result = checked(rule.check(entry))
+            if not result.allowed:
+                raise DomainError(result.code)
+        return self._repository.add(entry)
 
     def entries_for_transaction(self, transaction_id):
         return tuple(entry for entry in self._repository.all() if entry.transaction_id == transaction_id)
@@ -40,7 +46,11 @@ def view(entity):
     return {'entry_id': entity.entry_id, 'transaction_id': entity.transaction_id, 'account_id': entity.account_id, 'amount': entity.amount, 'entry_type': entity.entry_type, 'reverses_entry_id': entity.reverses_entry_id}
 
 
-from app.support.types import Repository, money
-
 def new_service(repository=None):
-    return LedgerService(repository if repository is not None else Repository("entry_id","DUPLICATE_ENTRY"))
+    if repository is None:
+        repository = Repository("entry_id", "DUPLICATE_ENTRY")
+    rules = (
+        AllowedEntryTypeRule(("DEBIT", "CREDIT")),
+        MaximumEntryAmountRule(money("1000")),
+    )
+    return LedgerService(repository, rules)
