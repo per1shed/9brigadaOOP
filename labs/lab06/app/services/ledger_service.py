@@ -18,6 +18,30 @@ class LedgerService:
                 raise DomainError(result.code)
         return self._repository.add(entry)
 
+    def make_reversal(self, original_id, new_id):
+        original = self._repository.get(original_id)
+        if original.reverses_entry_id is not None:
+            raise DomainError("REVERSAL_NOT_ALLOWED")
+
+        for entry in self._repository.all():
+            if entry.reverses_entry_id == original_id:
+                raise DomainError("REVERSAL_NOT_ALLOWED")
+
+        if original.entry_type == "DEBIT":
+            new_type = "CREDIT"
+        else:
+            new_type = "DEBIT"
+
+        reversal = LedgerEntry(
+            entry_id=new_id,
+            transaction_id=original.transaction_id,
+            account_id=original.account_id,
+            amount=original.amount,
+            entry_type=new_type,
+            reverses_entry_id=original_id,
+        )
+        return self.record(reversal)
+
     def entries_for_transaction(self, transaction_id):
         return tuple(entry for entry in self._repository.all() if entry.transaction_id == transaction_id)
 
